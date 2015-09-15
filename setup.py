@@ -31,6 +31,7 @@ setup(
             'lse = oocrawlers.lse:LSECrawler',
             'edgar_oo = oocrawlers.sedar:OOEdgarCrawler',
             'internal_docs = oocrawlers.internaldocs:InternalDocsCrawler',
+            'eiti = oocrawlers.eiti:EITICrawler',
         ]
     },
     tests_require=[]

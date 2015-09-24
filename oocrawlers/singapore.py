@@ -1,38 +1,32 @@
-#from aleph.crawlers import Crawler, TagExists
+from aleph.crawlers import Crawler, TagExists
 from BeautifulSoup import BeautifulSoup
 import json
 import requests
 import sys
-
-
 import pprint
 
-try:
-    raise ImportError
-    #from aleph.crawlers import Crawler, TagExists
-except ImportError:
+TEST=False
 
-    # Stubbed-out versions of the Aleph base crawler
-    # Intended only for dev/testing in isolation
     
-    class TagExists(Exception): pass
 
-    class TestCrawler(object):
-        MAX_RESULTS = 10
+class TestCrawler(object):
+    MAX_RESULTS = 10
 
-        def __init__(self, *args, **kwargs):
-            self.results = []
+    def __init__(self, *args, **kwargs):
+        self.results = []
 
-        def emit_url(self, url, package_id=None, **kwargs):
-            pprint.pprint([url, kwargs])
-            self.results.append([url, package_id, kwargs])
-            if len(self.results) >= self.MAX_RESULTS:
-                raise RuntimeError('finished downloading some items')
+    def emit_url(self, url, package_id=None, **kwargs):
+        pprint.pprint([url, kwargs])
+        self.results.append([url, package_id, kwargs])
+        if len(self.results) >= self.MAX_RESULTS:
+            raise RuntimeError('finished downloading some items')
 
-        def check_tag(self, *args, **kwargs):
-            return
+    def check_tag(self, *args, **kwargs):
+        return
 
+if TEST:
     Crawler = TestCrawler
+        
 
 
 COMPANIES_URL = 'http://sgx-api-lb-195267723.ap-southeast-1.elb.amazonaws.com/sgx/search?callback=jQuery1110005645173738973086_1442329596797&json=%7B%22criteria%22%3A%5B%5D%7D&_=1442329596800'
@@ -45,8 +39,8 @@ ANNOUNCEMENT_PERIODS = ['AnnouncementToday', 'AnnouncementLast3Months', 'Announc
 ANNOUNCEMENT_URL = 'http://infopub.sgx.com/Apps?A=COW_CorpAnnouncement_Content&B={}&F={}'
 
 
-class ExampleCrawler(Crawler):
-    LABEL = "Singapore Exchange Ltd | SGX"
+class SingaporeCrawler(Crawler):
+    LABEL = "Singapore"
     SITE = "http://www.sgx.com/"
 
     def list_companies(self):
@@ -243,5 +237,5 @@ class ExampleCrawler(Crawler):
 
 
 if __name__ == '__main__':
-    ec = ExampleCrawler('test')
+    ec = SingaporeCrawler('test')
     ec.crawl()

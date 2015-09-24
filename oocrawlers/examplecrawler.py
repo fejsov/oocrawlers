@@ -1,30 +1,23 @@
 import pprint
 
-try:
-    from aleph.crawlers import Crawler, TagExists
-except ImportError:
+class TagExists(Exception): pass
 
-    # Stubbed-out versions of the Aleph base crawler
-    # Intended only for dev/testing in isolation
-    
-    class TagExists(Exception): pass
+class TestCrawler(object):
+    MAX_RESULTS = 10
 
-    class TestCrawler(object):
-        MAX_RESULTS = 10
+    def __init__(self, *args, **kwargs):
+        self.results = []
 
-        def __init__(self, *args, **kwargs):
-            self.results = []
+    def emit_url(self, url, package_id=None, **kwargs):
+        pprint.pprint([url, kwargs])
+        self.results.append([url, package_id, kwargs])
+        if len(self.results) >= self.MAX_RESULTS:
+            raise RuntimeError('finished downloading some items')
 
-        def emit_url(self, url, package_id=None, **kwargs):
-            pprint.pprint([url, kwargs])
-            self.results.append([url, package_id, kwargs])
-            if len(self.results) >= self.MAX_RESULTS:
-                raise RuntimeError('finished downloading some items')
+    def check_tag(self, *args, **kwargs):
+        return
 
-        def check_tag(self, *args, **kwargs):
-            return
-
-    Crawler = TestCrawler
+Crawler = TestCrawler
 
     
 

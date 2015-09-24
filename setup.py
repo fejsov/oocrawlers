@@ -33,6 +33,7 @@ setup(
             'internal_docs = oocrawlers.internaldocs:InternalDocsCrawler',
             'eiti = oocrawlers.eiti:EITICrawler',
             'singapore = oocrawlers.singapore:SingaporeCrawler',
+            'south_africa = oocrawlers.south_africa:SouthAfricaCrawler',
         ]
     },
     tests_require=[]

@@ -336,21 +336,21 @@ class SouthAfricaCrawler(Crawler):
                 detailed_metadata.update(announcement_metadata)
                 
                 print(detailed_metadata)
-                
+                decoded_attachment_url = attachment_url.replace('\\', '')
                 try:
                     # Here we check that our datastore does not already
                     # contain a document with this URL
                     # Doing so enables us to re-run the scraper without
                     # filling the datastore with duplicates
                     
-                    id = self.check_tag(url=attachment_url)
+                    id = self.check_tag(url=decoded_attachment_url)
 
                     # This is the line that triggers the import into our system
                     # Aleph will then download the url, store a copy,
                     # extract the text from it (doing OCR etc as needed)
                     # and index text, title and metadata
                     self.emit_url(
-                        url = attachment_url,
+                        url = decoded_attachment_url,
                         title = detailed_metadata['flash_headline'],
                         meta = detailed_metadata,
                     )

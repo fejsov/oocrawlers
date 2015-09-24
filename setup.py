@@ -32,6 +32,7 @@ setup(
             'edgar_oo = oocrawlers.sedar:OOEdgarCrawler',
             'internal_docs = oocrawlers.internaldocs:InternalDocsCrawler',
             'eiti = oocrawlers.eiti:EITICrawler',
+            'singapore = oocrawlers.singapore.SingaporeCrawler',
         ]
     },
     tests_require=[]

@@ -12,7 +12,7 @@ except ImportError:
     class TestCrawler(object):
         MAX_RESULTS = 10
 
-        def __init__(self):
+        def __init__(self, *args, **kwargs):
             self.results = []
 
         def emit_url(self, url, package_id=None, **kwargs):

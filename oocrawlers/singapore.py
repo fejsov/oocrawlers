@@ -1,8 +1,38 @@
-from aleph.crawlers import Crawler, TagExists
+#from aleph.crawlers import Crawler, TagExists
 from BeautifulSoup import BeautifulSoup
 import json
 import requests
 import sys
+
+
+import pprint
+
+try:
+    raise ImportError
+    #from aleph.crawlers import Crawler, TagExists
+except ImportError:
+
+    # Stubbed-out versions of the Aleph base crawler
+    # Intended only for dev/testing in isolation
+    
+    class TagExists(Exception): pass
+
+    class TestCrawler(object):
+        MAX_RESULTS = 10
+
+        def __init__(self, *args, **kwargs):
+            self.results = []
+
+        def emit_url(self, url, package_id=None, **kwargs):
+            pprint.pprint([url, kwargs])
+            self.results.append([url, package_id, kwargs])
+            if len(self.results) >= self.MAX_RESULTS:
+                raise RuntimeError('finished downloading some items')
+
+        def check_tag(self, *args, **kwargs):
+            return
+
+    Crawler = TestCrawler
 
 
 COMPANIES_URL = 'http://sgx-api-lb-195267723.ap-southeast-1.elb.amazonaws.com/sgx/search?callback=jQuery1110005645173738973086_1442329596797&json=%7B%22criteria%22%3A%5B%5D%7D&_=1442329596800'
@@ -190,15 +220,13 @@ class ExampleCrawler(Crawler):
                 attachment_url, detailed_metadata = self.get_detailed_metadata(announcement_url)
                 detailed_metadata.update(announcement_metadata)
                 detailed_metadata.update(basic_company_data)
-                print(attachment_url)
-                """
                 try:
                     # Here we check that our datastore does not already
                     # contain a document with this URL
                     # Doing so enables us to re-run the scraper without
                     # filling the datastore with duplicates
                     
-                    id = self.check_tag(url=url)
+                    id = self.check_tag(url=attachment_url)
 
                     # This is the line that triggers the import into our system
                     # Aleph will then download the url, store a copy,
@@ -206,12 +234,14 @@ class ExampleCrawler(Crawler):
                     # and index text, title and metadata
                     self.emit_url(
                         url = attachment_url,
-                        title = announcement_metadata['Announcement Title'],
+                        title = detailed_metadata['Announcement Title'],
                         meta = detailed_metadata,
                     )
 
                 except TagExists:
-                    pass"""
-                    
-ec = ExampleCrawler('test')
-ec.crawl()
+                    pass
+
+
+if __name__ == '__main__':
+    ec = ExampleCrawler('test')
+    ec.crawl()

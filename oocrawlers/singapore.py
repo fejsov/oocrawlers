@@ -1,30 +1,14 @@
 from aleph.crawlers import Crawler, TagExists
 from BeautifulSoup import BeautifulSoup
+import dateutil.parser
 import json
 import requests
 import sys
 import pprint
 
-TEST=False
 
-    
-
-class TestCrawler(object):
-    MAX_RESULTS = 10
-
-    def __init__(self, *args, **kwargs):
-        self.results = []
-
-    def emit_url(self, url, package_id=None, **kwargs):
-        pprint.pprint([url, kwargs])
-        self.results.append([url, package_id, kwargs])
-        if len(self.results) >= self.MAX_RESULTS:
-            raise RuntimeError('finished downloading some items')
-
-    def check_tag(self, *args, **kwargs):
-        return
-
-if TEST:
+if __name__ == '__main__':
+    from examplecrawler import TestCrawler
     Crawler = TestCrawler
         
 
@@ -207,6 +191,25 @@ class SingaporeCrawler(Crawler):
         
         #===== Return announcements list =====#
         return announcements
+
+    def massage_metadata(self, metadata):
+        '''
+        Adapt metadata to conform to standard field names
+        '''
+        metadata['Company Name'] = metadata.get(u'Submitted By (Co./ Ind. Name)', '')
+        metadata['Company ID'] = metadata.get('code', '')
+        metadata['Industry Sector'] = metadata.get('industry', '')
+        try:
+            metadata['Filing Date'] = dateutil.parser.parse(metadata['Date of receipt of notice by Listed Issuer']).strftime('%F')
+        except KeyError:
+            try:
+                metadata['Filing Date'] = dateutil.parser.parse(metadata[u'Date &amp; Time of Broadcast']).strftime('%F')
+            except KeyError:
+                pass
+        metadata['Announcement Title'] = metadata.get('Announcement Title',
+                                                      metadata.get('title',
+                                                                   ''))
+        return metadata
     
     def crawl(self):
         for company_name, basic_company_data in self.list_companies():
@@ -214,6 +217,7 @@ class SingaporeCrawler(Crawler):
                 attachment_url, detailed_metadata = self.get_detailed_metadata(announcement_url)
                 detailed_metadata.update(announcement_metadata)
                 detailed_metadata.update(basic_company_data)
+                detailed_metadata = self.massage_metadata(detailed_metadata)
                 try:
                     # Here we check that our datastore does not already
                     # contain a document with this URL

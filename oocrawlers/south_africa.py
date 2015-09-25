@@ -3,6 +3,7 @@ from aleph.crawlers import Crawler, TagExists
 from BeautifulSoup import BeautifulSoup
 import json
 from random import randint
+import re
 import requests
 import sys
 from time import sleep
@@ -26,6 +27,8 @@ NATURE_OF_BUSINESS_URL = 'https://www.jse.co.za/_vti_bin/JSE/CustomerRoleService
 ASSOCIATED_ROLES_URL = 'https://www.jse.co.za/_vti_bin/JSE/CustomerRoleService.svc/GetIssuerAssociatedRoles'
 INSTRUMENTS_FOR_ISSUER_URL = 'https://www.jse.co.za/_vti_bin/JSE/SharesService.svc/GetAllInstrumentsForIssuer'
 ANNOUNCEMENTS_SEARCH_URL = 'https://www.jse.co.za/_vti_bin/JSE/SENSService.svc/GetSensAnnouncementsByIssuerMasterId'
+REGULATORY_DOCUMENTS_URL = 'https://www.jse.co.za/_vti_bin/JSE/WebstirService.svc/GetWebstirDocumentsByIssuerMasterIdAndYear'
+REGULATORY_DOCUMENTS_YEARS_URL = 'https://www.jse.co.za/_vti_bin/JSE/WebstirService.svc/GetWebstirDocumentYearsByIssuerMasterId'
 #PROXIES = {'https': 'https://54.207.45.19:3333'}
 PROXIES = {}
 false = ""
@@ -34,7 +37,7 @@ false = ""
 class SouthAfricaCrawler(Crawler):
     LABEL = "Johannesburg Stock Exchange"
     SITE = "https://www.jse.co.za/"
-    MAX_RESULTS = 10
+    MAX_RESULTS = 10  #There are 385 companies currently on the site. This should be bigger number !!!
 
 
     def list_companies(self):
@@ -55,7 +58,7 @@ class SouthAfricaCrawler(Crawler):
                    'Cache-Control': 'no-cache'}
                    
         #===== Define parameters for URL request =====#
-        data = '{"filterLongName": "Y", "filterType": "Equity Issuer"}'
+        data = '{"filterLongName": "", "filterType": "Equity Issuer"}'
         
         #===== Create request for getting page with JSON objects containing companies data =====#
         try:
@@ -206,7 +209,6 @@ class SouthAfricaCrawler(Crawler):
             response = requests.post(ASSOCIATED_ROLES_URL, headers=headers, data=request_data, verify=True, proxies=PROXIES)
             
             #===== If page returned successfuly, get details =====#
-            print(response.status_code)
             if response.status_code == 200:
             
                 #===== Try to convert data to dictionary =====#
@@ -256,6 +258,47 @@ class SouthAfricaCrawler(Crawler):
                    'Accept-Encoding': 'gzip, deflate',
                    'Content-Type': 'application/json; charset=UTF-8',
                    'X-Requested-With': 'XMLHttpRequest',
+                   'Referer': STARTING_URL,
+                   'Cookie': '_ga=GA1.3.473812871.1441294880; SearchSession=2451a284-3aad-4bb0-9040-df5133b89bcc; _gat=1; WSS_FullScreenMode=false',
+                   'Pragma': 'no-cache',
+                   'Cache-Control': 'no-cache'}
+        
+        #===== Define parameters for URL request =====#
+        data = {"issuerMasterId": str(master_id)}
+        
+        #===== Create request for getting announcement page =====#
+        try:
+            response = requests.post(COMPANY_INFO_URL.format(master_id), headers=headers, verify=True, proxies=PROXIES)
+        except:
+            return announcements
+        
+        #===== If page retrieved successfuly, process it =====#
+        if response.status_code == 200:
+                
+            #===== Find related documents =====#
+            titles = re.findall('"Title":"(.+?)"', response.text)
+            paths = re.findall('"Path":"(.+?)"', response.text)
+            
+            for title, path in zip(titles, paths):
+                document_metadata = {}
+                
+                document_url = path.replace('\\u002f', '/')
+                document_metadata['title'] = title
+                
+                announcements.append([document_url, document_metadata])
+                
+        #===== If not, show error page =====#
+        else:
+            print(response.text)
+        
+        #===== Set header fields for URL request =====#
+        headers = {'Host': 'www.jse.co.za',
+                   'User-Agent': '"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:40.0) Gecko/20100101 Firefox/40.0"',
+                   'Accept': 'application/json, text/javascript, */*; q=0.01',
+                   'Accept-Language': 'en-US,en;q=0.5',
+                   'Accept-Encoding': 'gzip, deflate',
+                   'Content-Type': 'application/json; charset=UTF-8',
+                   'X-Requested-With': 'XMLHttpRequest',
                    'Referer': COMPANY_INFO_URL.format(master_id),
                    'Cookie': '_ga=GA1.3.473812871.1441294880; SearchSession=2451a284-3aad-4bb0-9040-df5133b89bcc; _gat=1; WSS_FullScreenMode=false',
                    'Pragma': 'no-cache',
@@ -285,14 +328,14 @@ class SouthAfricaCrawler(Crawler):
             
                 #===== Try to find key (part of URL to be added to predefined URL) =====#
                 try:
-                    attachment_url = announcement['PDFPath']
+                    attachment_url = announcement['PDFPath'].replace('\\/', '/')
                     
                 #===== No key field in current announcement, move to next =====#
                 except KeyError:
                     continue
                     
                 try:
-                    announcement_metadata['acknowledge_date_time'] = announcement['AcknowledgeDateTime']
+                    announcement_metadata['acknowledge_date_time'] = announcement['AcknowledgeDateTime'].replace('\\/', '')
                 except:
                     pass
                     
@@ -312,17 +355,93 @@ class SouthAfricaCrawler(Crawler):
                     pass
                     
                 try:
-                    announcement_metadata['flash_headline'] = announcement['FlashHeadline']
+                    announcement_metadata['title'] = announcement['FlashHeadline']
                 except:
                     pass
                     
                 #===== Append data to announcements list =====#
                 announcements.append([attachment_url, announcement_metadata])
                 
-                
         #===== If not, show error page =====#
         else:
             print(response.text)
+        
+        #===== Define parameters for URL request (regulatory documents years) =====#  
+        data = '{"issuerMasterId": "' + str(master_id) + '"}'
+        
+        #===== Create request for getting regulatory documents page =====#
+        try:
+            response = requests.post(REGULATORY_DOCUMENTS_YEARS_URL, headers=headers, data=data, verify=True, proxies=PROXIES)
+        except:
+            return announcements
+            
+        #===== If page retrieved successfuly, process it =====#
+        if response.status_code == 200:
+        
+            #===== Try to convert data to dictionary =====#
+            try:
+                data = eval(response.text.replace('null', '""'))['GetWebstirDocumentYearsByIssuerMasterIdResult']
+            except:
+                return announcements
+        
+        years = []     
+        for year in data:
+            years.append(year)
+            
+        #===== Define parameters for URL request (regulatory documents) =====#
+        for i in years:
+        
+            data = '{"issuerMasterId": "' + str(master_id) + '", "year": ' + str(i) + '}'
+            
+            #===== Create request for getting regulatory documents page =====#
+            try:
+                response = requests.post(REGULATORY_DOCUMENTS_URL, headers=headers, data=data, verify=True, proxies=PROXIES)
+            except Exception as e:
+                print(e)
+                return announcements
+                
+            #===== If page retrieved successfuly, process it =====#
+            if response.status_code == 200:
+            
+                #===== Try to convert data to dictionary =====#
+                try:
+                    data = eval(response.text.replace('null', '""'))['GetWebstirDocumentsByIssuerMasterIdAndYearResult']
+                except:
+                    return announcements
+                    
+                #===== Loop through announcements in dictionary ======#    
+                for announcement in data:
+                    announcement_metadata = {}
+                
+                    #===== Try to find key (part of URL to be added to predefined URL) =====#
+                    try:
+                        attachment_url = announcement['DocumentUrl'].replace('\\/', '/')
+                        
+                    #===== No key field in current announcement, move to next =====#
+                    except KeyError:
+                        continue
+                        
+                    try:
+                        announcement_metadata['title'] = announcement['DocumentType']
+                    except:
+                        pass
+                        
+                    try:
+                        announcement_metadata['event_type'] = announcement['EventType']
+                    except:
+                        pass
+                        
+                    try:
+                        announcement_metadata['submitted_date'] = announcement['SubmittedDate'].replace('\\/', '')
+                    except:
+                        pass
+
+                    #===== Append data to announcements list =====#
+                    announcements.append([attachment_url, announcement_metadata])
+                    
+            #===== If not, show error page =====#
+            else:
+                print(response.text)
         
         #===== Return announcements list =====#
         return announcements
@@ -336,22 +455,21 @@ class SouthAfricaCrawler(Crawler):
                 detailed_metadata.update(announcement_metadata)
                 
                 print(detailed_metadata)
-                decoded_attachment_url = attachment_url.replace('\\', '')
                 try:
                     # Here we check that our datastore does not already
                     # contain a document with this URL
                     # Doing so enables us to re-run the scraper without
                     # filling the datastore with duplicates
                     
-                    id = self.check_tag(url=decoded_attachment_url)
+                    id = self.check_tag(url=attachment_url)
 
                     # This is the line that triggers the import into our system
                     # Aleph will then download the url, store a copy,
                     # extract the text from it (doing OCR etc as needed)
                     # and index text, title and metadata
                     self.emit_url(
-                        url = decoded_attachment_url,
-                        title = detailed_metadata['flash_headline'],
+                        url = attachment_url,
+                        title = detailed_metadata['title'],
                         meta = detailed_metadata,
                     )
                     results += 1
